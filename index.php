@@ -31,16 +31,17 @@ function loadEnv($filePath = __DIR__ . '/.env') {
 // Muat konfigurasi .env
 loadEnv();
 
-// Ambil nilai variabel koneksi dari .env
+// Ambil variabel lingkungan dengan nama kunci yang baru
+$driver   = getenv('DB_CONNECTION') ?: 'pgsql';
 $host     = getenv('DB_HOST') ?: 'localhost';
 $port     = getenv('DB_PORT') ?: '5432';
-$dbname   = getenv('DB_NAME') ?: 'db_users';
-$username = getenv('DB_USER') ?: 'postgres';
+$dbname   = getenv('DB_DATABASE') ?: 'db_users';
+$username = getenv('DB_USERNAME') ?: 'postgres';
 $password = getenv('DB_PASSWORD') ?: '';
 
 try {
-    // Koneksi PDO PostgreSQL
-    $pdo = new PDO("pgsql:host=$host;port=$port;dbname=$dbname", $username, $password, [
+    // Koneksi PDO dinamis menggunakan variabel dari .env
+    $pdo = new PDO("{$driver}:host={$host};port={$port};dbname={$dbname}", $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
@@ -62,11 +63,15 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daftar Pengguna - PostgreSQL dengan .env</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; padding: 40px; }
-        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 10px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 40px; margin: 0; }
+        .container { max-width: 900px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #27ae60; padding-bottom: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 12px 15px; border-bottom: 1px solid #ddd; text-align: left; }
-        th { background-color: #27ae60; color: white; }
+        th, td { padding: 12px 15px; text-align: left; }
+        thead tr { background-color: #27ae60; color: #ffffff; }
+        tbody tr { border-bottom: 1px solid #dddddd; }
+        tbody tr:nth-of-type(even) { background-color: #f9f9f9; }
+        tbody tr:hover { background-color: #f1f1f1; }
         .badge { background-color: #e8f8f5; color: #1e8449; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
     </style>
 </head>
