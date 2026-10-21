@@ -1,185 +1,70 @@
 <?php
-
-declare(strict_types=1);
-
-header('Content-Type: text/html; charset=utf-8');
-
-function envValue(string $key): string
-{
-    static $env = null;
-
-    if ($env === null) {
-        $path = __DIR__ . '/.env';
-
-        if (!is_file($path) || !is_readable($path)) {
-            throw new RuntimeException('File .env tidak ditemukan atau tidak bisa dibaca.');
-        }
-
-        $env = parse_ini_file($path, false, INI_SCANNER_RAW);
-
-        if ($env === false) {
-            throw new RuntimeException('File .env gagal dibaca.');
-        }
-    }
-
-    $value = $env[$key] ?? null;
-
-    if (!is_string($value) || $value === '') {
-        throw new RuntimeException("Konfigurasi {$key} belum diisi.");
-    }
-
-    return $value;
-}
-
-$status = [];
-$pdo = null;
+// Konfigurasi Koneksi Database
+$host = 'localhost';
+$dbname = 'db_users';
+$username = 'root';
+$password = ''; // sesuaikan jika ada password database Anda
 
 try {
-    if (envValue('DB_CONNECTION') !== 'pgsql') {
-        throw new RuntimeException('DB_CONNECTION harus bernilai pgsql.');
-    }
-
-    $host = envValue('DB_HOST');
-    $port = envValue('DB_PORT');
-    $database = envValue('DB_DATABASE');
-    $username = envValue('DB_USERNAME');
-    $password = envValue('DB_PASSWORD');
-
-    $status[] = ['Membaca .env', true, 'Konfigurasi berhasil dibaca.'];
-
-    $dsn = sprintf(
-        'pgsql:host=%s;port=%s;dbname=%s;connect_timeout=5',
-        $host,
-        $port,
-        $database
-    );
-
-    $pdo = new PDO($dsn, $username, $password, [
+    // Membuat koneksi PDO
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
-    $version = $pdo->query('SELECT version()')->fetchColumn();
+    // Query mengambil data dari tabel users
+    $stmt = $pdo->prepare("SELECT id, nama, tanggal_lahir, usia, created_at FROM users ORDER BY id ASC");
+    $stmt->execute();
+    $users = $stmt->fetchAll();
 
-    $status[] = [
-        'Koneksi PostgreSQL',
-        true,
-        'Berhasil terhubung ke ' . $database . ' menggunakan user ' . $username . '.'
-    ];
-
-    $schemaFile = __DIR__ . '/schema.sql';
-
-    if (!is_file($schemaFile) || !is_readable($schemaFile)) {
-        throw new RuntimeException('File schema.sql tidak ditemukan atau tidak bisa dibaca.');
-    }
-
-    $schema = file_get_contents($schemaFile);
-
-    if ($schema === false || trim($schema) === '') {
-        throw new RuntimeException('File schema.sql kosong atau gagal dibaca.');
-    }
-
-    // Untuk pengujian, jalankan schema di dalam transaksi.
-    // Cocok untuk schema sederhana yang menggunakan perintah transactional.
-    $pdo->beginTransaction();
-
-    try {
-        $pdo->exec($schema);
-        $pdo->commit();
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-
-        throw $e;
-    }
-
-    $status[] = [
-        'Menjalankan schema.sql',
-        true,
-        'Schema berhasil dijalankan.'
-    ];
-
-    $rows = $pdo
-        ->query('SELECT id, message, created_at FROM connection_test ORDER BY id DESC LIMIT 5')
-        ->fetchAll();
-
-    $status[] = [
-        'Membaca tabel pengujian',
-        true,
-        'Berhasil membaca ' . count($rows) . ' baris.'
-    ];
-} catch (Throwable $e) {
-    $status[] = ['Pengujian', false, $e->getMessage()];
-}
-
-function h(string $value): string
-{
-    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+} catch (PDOException $e) {
+    die("Koneksi gagal: " . $e->getMessage());
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Nivor PostgreSQL Connection Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar Pengguna (Users)</title>
     <style>
-        body {
-            font-family: system-ui, sans-serif;
-            max-width: 850px;
-            margin: 40px auto;
-            padding: 0 20px;
-            color: #222;
-        }
-        .status {
-            padding: 14px;
-            margin: 12px 0;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-        .success { border-left: 5px solid #16803d; }
-        .failed { border-left: 5px solid #c62828; }
-        pre {
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-        }
-        .warning { color: #a15c00; }
+        body { font-family: sans-serif; background-color: #f4f7f6; padding: 40px; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #3498db; color: white; }
     </style>
 </head>
 <body>
-    <h1>Nivor PostgreSQL Test</h1>
-    <p>Hasil pengujian koneksi database aplikasi.</p>
 
-    <?php foreach ($status as [$title, $success, $message]): ?>
-        <section class="status <?= $success ? 'success' : 'failed' ?>">
-            <strong><?= $success ? 'BERHASIL' : 'GAGAL' ?> — <?= h($title) ?></strong>
-            <p><?= h($message) ?></p>
-        </section>
-    <?php endforeach; ?>
-
-    <?php if ($pdo instanceof PDO && isset($rows)): ?>
-        <h2>Data dari connection_test</h2>
-        <?php if ($rows === []): ?>
-            <p>Belum ada data yang ditemukan.</p>
-        <?php else: ?>
-            <ul>
-                <?php foreach ($rows as $row): ?>
-                    <li>
-                        #<?= (int) $row['id'] ?> —
-                        <?= h((string) $row['message']) ?> —
-                        <?= h((string) $row['created_at']) ?>
-                    </li>
+<div class="container">
+    <h2>Data Users</h2>
+    <?php if (!empty($users)): ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nama</th>
+                    <th>Tanggal Lahir</th>
+                    <th>Usia</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($users as $user): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($user['id']); ?></td>
+                        <td><?= htmlspecialchars($user['nama']); ?></td>
+                        <td><?= date('d-m-Y', strtotime($user['tanggal_lahir'])); ?></td>
+                        <td><?= htmlspecialchars($user['usia']); ?> tahun</td>
+                    </tr>
                 <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
+            </tbody>
+        </table>
+    <?php else: ?>
+        <p>Data tidak ditemukan.</p>
     <?php endif; ?>
+</div>
 
-    <p class="warning">
-        Halaman ini hanya untuk pengujian. Hapus atau lindungi halaman
-        setelah pengujian selesai. Jangan tampilkan detail error database
-        kepada pengunjung di production.
-    </p>
 </body>
 </html>
