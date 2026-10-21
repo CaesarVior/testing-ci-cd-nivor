@@ -1,24 +1,22 @@
 <?php
-// Konfigurasi Koneksi Database
 $host = 'localhost';
+$port = '5432';
 $dbname = 'db_users';
-$username = 'root';
-$password = ''; // sesuaikan jika ada password database Anda
+$username = 'postgres';
+$password = 'password_kamu'; // Ganti dengan password PostgreSQL kamu
 
 try {
-    // Membuat koneksi PDO
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password, [
+    $pdo = new PDO("pgsql:host=$host;port=$port;dbname=$dbname", $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
-    // Query mengambil data dari tabel users
     $stmt = $pdo->prepare("SELECT id, nama, tanggal_lahir, usia, created_at FROM users ORDER BY id ASC");
     $stmt->execute();
     $users = $stmt->fetchAll();
 
 } catch (PDOException $e) {
-    die("Koneksi gagal: " . $e->getMessage());
+    die("Koneksi gagal atau terjadi kesalahan query: " . $e->getMessage());
 }
 ?>
 
@@ -27,19 +25,19 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar Pengguna (Users)</title>
+    <title>Daftar Pengguna - PostgreSQL</title>
     <style>
         body { font-family: sans-serif; background-color: #f4f7f6; padding: 40px; }
         .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
-        th { background-color: #3498db; color: white; }
+        th { background-color: #27ae60; color: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Data Users</h2>
+    <h2>Data Users (PostgreSQL)</h2>
     <?php if (!empty($users)): ?>
         <table>
             <thead>
